@@ -141,12 +141,12 @@ module.exports = function( grunt ) {
 	grunt.loadNpmTasks( 'grunt-contrib-watch' );
 	grunt.loadNpmTasks( 'grunt-replace' );
 
-	grunt.registerTask( 'default', [ 'i18n', 'readme', 'check-modules' ] );
-	grunt.registerTask( 'i18n', [ 'addtextdomain', 'makepot' ] );
-	grunt.registerTask( 'readme', [ 'wp_readme_to_markdown' ] );
+	grunt.registerTask( 'default', ['i18n', 'readme', 'check-modules'] );
+	grunt.registerTask( 'i18n', ['addtextdomain', 'makepot'] );
+	grunt.registerTask( 'readme', ['wp_readme_to_markdown'] );
 
 	// Compile SASS and minify assets
-	grunt.registerTask('pre-commit', ['sass:dist', 'cssmin', 'uglify:all']);
+	grunt.registerTask( 'pre-commit', ['sass:dist', 'cssmin', 'uglify:all'] );
 
 	grunt.util.linefeed = '\n';
 
