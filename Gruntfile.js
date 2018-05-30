@@ -43,13 +43,110 @@ module.exports = function( grunt ) {
 				}
 			}
 		},
+
+		required: {
+			libs: {
+				options: {
+					// npm install missing modules
+					install: true
+				},
+				// Search for require() in all js files in the src folder
+				src: ['src/*.js']
+			}
+		},
+		// Uglify JS
+		uglify: {
+			options: {
+				mangle: true,
+				compress: {
+					drop_console: true
+				}
+			},
+			all: {
+				files: [{
+					expand: true,
+					cwd: 'assets/js/',
+					src: ['*.js', '!*.min.js', '!assets/js/ext/*.js'],
+					dest: 'assets/js/',
+					ext: '.min.js'
+				}]
+			}
+		},
+
+		// Compile Sass
+		sass: {
+			dist: {
+				options: {
+				style: 'nested',
+				unixNewlines: true
+			},
+				expand: true,
+				cwd: 'assets/scss',
+				src: ['*.scss'],
+				dest: 'assets/css/',
+				ext: '.css'
+			},
+			dev: {
+				options: {
+				style: 'nested',
+				lineNumbers: true,
+				unixNewlines: true
+			},
+				expand: true,
+				cwd: 'assets/scss',
+				src: ['*.scss'],
+				dest: 'assets/css/',
+				ext: '.css'
+			},
+		},
+
+		// Minify CSS
+		cssmin: {
+			minify: {
+				expand: true,
+				cwd: 'assets/css',
+				src: ['*.css', '!*.min.css'],
+				dest: 'assets/css/',
+				ext: '.min.css'
+			}
+		},
+
+		// Watch for changes during development
+		watch: {
+			options: {
+				livereload: true
+			},
+			styles: {
+				files: ['assets/scss/*.scss','assets/scss/**/*.scss'],
+				tasks: ['sass:dist','cssmin']
+			},
+			scripts: {
+				files: ['assets/js/*.js', '!assets/js/*.min.js', '!assets/js/ext/*.js'],
+				tasks: ['uglify']
+			},
+		}
+
 	} );
 
 	grunt.loadNpmTasks( 'grunt-wp-i18n' );
 	grunt.loadNpmTasks( 'grunt-wp-readme-to-markdown' );
-	grunt.registerTask( 'default', [ 'i18n','readme' ] );
+	grunt.loadNpmTasks( 'grunt-required' );
+	grunt.loadNpmTasks( 'grunt-check-modules' );
+	grunt.loadNpmTasks( 'grunt-contrib-copy' );
+	grunt.loadNpmTasks( 'grunt-contrib-compress' );
+	grunt.loadNpmTasks( 'grunt-contrib-clean' );
+	grunt.loadNpmTasks( 'grunt-contrib-uglify' );
+	grunt.loadNpmTasks( 'grunt-contrib-sass' );
+	grunt.loadNpmTasks( 'grunt-contrib-cssmin' );
+	grunt.loadNpmTasks( 'grunt-contrib-watch' );
+	grunt.loadNpmTasks( 'grunt-replace' );
+
+	grunt.registerTask( 'default', ['i18n', 'readme', 'check-modules'] );
 	grunt.registerTask( 'i18n', ['addtextdomain', 'makepot'] );
 	grunt.registerTask( 'readme', ['wp_readme_to_markdown'] );
+
+	// Compile SASS and minify assets
+	grunt.registerTask( 'pre-commit', ['sass:dist', 'cssmin', 'uglify:all'] );
 
 	grunt.util.linefeed = '\n';
 
