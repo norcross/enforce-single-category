@@ -9,41 +9,13 @@
 namespace EnforceSingleCategory\PostEdit;
 
 // Set our alias items.
-use EnforceSingleCategory as Core;
 use EnforceSingleCategory\Helpers as Helpers;
 
 /**
  * Start our engines.
  */
-add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\load_admin_assets' );
 add_action( 'add_meta_boxes', __NAMESPACE__ . '\remove_default_metabox', 11 );
-
-/**
- * Load our admin side JS and CSS.
- *
- * @param $hook  Admin page hook we are current on.
- *
- * @return void
- */
-function load_admin_assets( $hook ) {
-
-	/*
-	// Set my handle.
-	$handle = 'enforce-single-category';
-
-	// Set a file suffix structure based on whether or not we want a minified version.
-	$file   = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? $handle . '-admin' : $handle . '-admin.min';
-
-	// Set a version for whether or not we're debugging.
-	$vers   = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? time() : Core\VERS;
-
-	// Load our CSS file.
-	wp_enqueue_style( $handle, Core\ASSETS_URL . '/css/' . $file . '.css', false, $vers, 'all' );
-
-	// And our JS.
-	wp_enqueue_script( $handle, Core\ASSETS_URL . '/js/' . $file . '.js', array( 'jquery' ), $vers, true );
-	*/
-}
+add_action( 'save_post', __NAMESPACE__ . '\enforce_on_save', 12, 2 );
 
 /**
  * Remove the default metabox from the editor page.
@@ -73,31 +45,72 @@ function single_category_box( $post ) {
 
 	// Set the args for the dropdown.
 	$args   = array(
-		'show_option_all'    => '',
-		'show_option_none'   => '',
-		'option_none_value'  => '-1',
-		'hide_empty'         => 0,
-		'echo'               => 0,
-		'selected'           => absint( $value ),
-		'hierarchical'       => 1,
-		'hide_if_empty'      => false,
+		'show_option_all'   => '',
+		'show_option_none'  => '',
+		'option_none_value' => '',
+		'hide_empty'        => 0,
+		'echo'              => 0,
+		'selected'          => absint( $value ),
+		'hierarchical'      => 1,
+		'hide_if_empty'     => false,
+		'name'              => 'post_category[]',
+		'id'                => 'single-cat-box-dropdown',
+		'class'             => 'widefat',
 	);
 
-	/*
-	// fetch the first term on the item
-	$value  = DPP2015_Helper::get_first_term( $post->ID, 'showcase-theme' );
+	// Now output div around the dropdown box.
+	echo '<div id="taxonomy-category" class="categorydiv">';
 
-	// build the dropdown
-	echo '<select class="" name="showcase-theme-drop" id="showcase-theme-drop">';
+		// Include a hidden field to mimic the original metabox.
+		echo '<input type="hidden" name="post_category[]" value="0">';
 
-		echo '<option value="">(Select)</option>';
+		// Echo the actual dropdown.
+		echo wp_dropdown_categories( $args );
 
-		// loop the terms
-		foreach ( $terms as $term ) {
-			echo '<option value="' . $term['term_id'] . '" ' . selected( $value['term_id'], $term['term_id'], false ) . '>' . esc_html( $term['name'] ) . '</option>';
-		}
+	// Close up the div.
+	echo '</div>';
+}
 
-	// close the dropdown
-	echo '</select>';
-	*/
+/**
+ * Check the number of categories being passed.
+ *
+ * @param  integer $post_id  The individual post ID.
+ * @param  object  $post     The entire post object.
+ *
+ * @return void
+ */
+function enforce_on_save( $post_id, $post ) {
+
+	// Bail if it isn't an actual post.
+	if ( 'post' !== $post->post_type ) {
+		return;
+	}
+
+	// Bail if we don't have categories at all (not sure why but ¯\_(ツ)_/¯ )
+	if ( empty( $_POST['post_category'] ) ) {
+		return;
+	}
+
+	// Check the number of items passed.
+	$count  = count( $_POST['post_category'] );
+
+	// If we have two array items, we're gold.
+	if ( 2 === absint( $count ) ) {
+		return;
+	}
+
+	// Set the terms passed.
+	$terms  = array_map( 'absint', $_POST['post_category'] );
+
+	// Cut down to two items.
+	$setup  = array_slice( $terms, 0, 2 );
+
+	// Unhook, else ye will recieve the ENDLESS LOOP OF DEATH.
+	remove_action( 'save_post', __NAMESPACE__ . '\enforce_on_save', 12, 2 );
+
+	// Set the post categories correctly.
+	wp_set_post_categories( $post_id, $setup, false );
+
+	// Add it back so it'll run again.
+	add_action( 'save_post', __NAMESPACE__ . '\enforce_on_save', 12, 2 );
 }

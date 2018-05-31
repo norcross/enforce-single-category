@@ -8,9 +8,6 @@
 // Call our namepsace.
 namespace EnforceSingleCategory\Helpers;
 
-// Set our alias items.
-use EnforceSingleCategory as Core;
-
 /**
  * Get the first category associated with a post.
  *
@@ -24,9 +21,22 @@ function get_first_term( $post_id = 0, $key = '' ) {
 	// First check for terms.
 	$terms  = get_the_terms( $post_id, 'category' );
 
-	// Bail without them.
+	// If we have no terms for the post, use the default.
 	if ( empty( $terms ) || is_wp_error( $terms ) ) {
-		return;
+
+		// Get the default category.
+		$defcat = get_option( 'default_category', '1' );
+
+		// Set the term data.
+		$deftrm = get_term( $defcat, 'category', ARRAY_A );
+
+		// Return the entire thing if we didn't include a key
+		if ( empty( $key ) ) {
+			return $deftrm;
+		}
+
+		// Return a single portion of the data.
+		return isset( $deftrm[ $key ] ) ? $deftrm[ $key ] : false;
 	}
 
 	// Reset array so we can pull easily.
