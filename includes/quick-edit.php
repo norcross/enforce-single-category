@@ -14,44 +14,33 @@ use EnforceSingleCategory\Helpers as Helpers;
 /**
  * Start our engines.
  */
-//add_action( 'admin_head', __NAMESPACE__ . '\admin_css' );
-
-//add_filter( 'manage_post_posts_columns', __NAMESPACE__ . '\add_dummy_column', 10, 2 );
-//add_action( 'manage_posts_custom_column', __NAMESPACE__ . '\add_column_data', 10, 2 );
-
-//add_filter( 'manage_edit-post_columns', __NAMESPACE__ . '\remove_dummy_column', 20 );
+add_action( 'admin_head', __NAMESPACE__ . '\add_table_css' );
+add_filter( 'manage_post_posts_columns', __NAMESPACE__ . '\add_dummy_column', 10, 2 );
+add_filter( 'hidden_columns', __NAMESPACE__ . '\set_hidden_column', 10, 3 );
 add_filter( 'quick_edit_show_taxonomy', __NAMESPACE__ . '\remove_category_inline', 10, 3 );
-//add_action( 'quick_edit_custom_box', __NAMESPACE__ . '\display_category_quickedit', 10, 2 );
+add_action( 'quick_edit_custom_box', __NAMESPACE__ . '\display_category_quickedit', 10, 2 );
 
+/**
+ * Add some CSS to the head.
+ *
+ * @return string
+ */
+function add_table_css() {
 
-add_action( 'quick_edit_columns_left', __NAMESPACE__ . '\display_inline_quickedit', 10, 2 );
+	// Get our screen item.
+	$screen = Helpers\check_admin_screen();
 
-function display_inline_quickedit( $post_type, $bulk ) {
-
-	// Bail if we aren't on the post type we want.
-	if ( empty( $post_type ) || 'post' !== $post_type ) {
+	// Make sure we're only on the post table.
+	if ( 'edit' !== sanitize_text_field( $screen['base'] ) || 'edit-post' !== sanitize_text_field( $screen['id'] ) ) {
 		return;
 	}
 
-	// Set my empty.
-	$field  = '';
-
-	// Wrap it in a div.
-	$field .= '<div class="inline-edit-group wp-clearfix"><label>';
-
-		// Load the label portion.
-		$field .= '<span class="title inline-edit-category-label">' . esc_html__( 'Category', 'enforce-single-category' ) . '</span>';
-
-		// Call our dropdown function.
-		$field .= '<span class="input-text-wrap dropdown">';
-			$field .= Helpers\get_dropdown_field( 0, array( 'class' => 'inline-dropdown' ) );
-		$field .= '</span>';
-
-	// Close up the div.
-	$field .= '</label></div>';
-
-    // And echo it out.
-    echo $field;
+	// Now echo out the CSS.
+	echo '<style type="text/css">' . "\n";
+		echo '#wpbody-content .inline-edit-row fieldset#inline-edit-col-single-category { margin-top:10px; }' . "\n";
+		echo '.inline-edit-spacer { width:50%; float:left; }' . "\n";
+		echo '.column-enforce-plc { float:left; }' . "\n";
+	echo '</style>' . "\n";
 }
 
 /**
@@ -63,51 +52,34 @@ function display_inline_quickedit( $post_type, $bulk ) {
  */
 function add_dummy_column( $columns ) {
 
-	// Rename the categories
-	$columns['categories'] = __( 'Category', 'enforce-single-category' );
+	// Rename the categories to singular.
+	$columns['categories']  = __( 'Category', 'enforce-single-category' );
 
-	// Add the dummy column.
-	$columns['enforce-dummy'] = ''; // __( 'Dummy', 'enforce-single-category' );
+	// Add the dummy placeholder column.
+	$columns['enforce-plc'] = __return_empty_string();
 
 	// Return the resulting columns.
 	return $columns;
 }
 
 /**
- * Add the category data to our column.
+ * Add our dummy column to the hidden items.
  *
- * @param  string  $column   The name of the column.
- * @param  integer $post_id  The post ID we're on.
+ * @param  array   $hidden        An array of hidden columns.
+ * @param  object  $screen        WP_Screen object of the current screen.
+ * @param  boolean $use_defaults  Whether to show the default columns.
  *
- * @return mixed
+ * @return array   $hidden        The modified array of columns.
  */
-function add_column_data( $column, $post_id ) {
+function set_hidden_column( $hidden, $screen, $use_defaults ) {
 
-	// Run through our columns.
-	switch ( $column ) {
-
-		case 'enforce-dummy' :
- 			echo '<span class="enforce-dummy-value">' . Helpers\get_first_term( $post_id, 'term_id' ) , '</span>';
-			break;
-    }
-}
-
-/**
- * Remember that dummy column we added? We're removing it.
- *
- * @param  array $columns  The existing array of columns.
- *
- * @return array $columns  The modified array of columns.
- */
-function remove_dummy_column( $columns ) {
-
-	// If we have the dummy, remove it.
-	if ( isset( $columns['enforce-dummy'] ) ) {
-		unset( $columns['enforce-dummy'] );
+	// Check the screen ID before we set.
+	if ( empty( $screen->id ) || 'edit-post' !== $screen->id ) {
+		return $hidden;
 	}
 
-	// And return them.
-	return $columns;
+	// Return our updated array.
+	return wp_parse_args( (array) 'enforce-plc', $hidden );
 }
 
 /**
@@ -134,24 +106,39 @@ function remove_category_inline( $show, $taxonomy, $post_type ) {
 function display_category_quickedit( $column, $post_type ) {
 
 	// Bail if we aren't on the column we want.
-	if ( empty( $column ) || 'enforce-dummy' !== $column ) {
-	//	return;
+	if ( empty( $column ) || 'enforce-plc' !== $column ) {
+		return;
 	}
 
 	// Set my empty.
 	$field  = '';
 
 	// Open up the fieldset.
-	$field .= '<fieldset class="inline-edit-col-end inline-edit-col-category-dropdown">';
+	$field .= '<fieldset id="inline-edit-col-single-category" class="inline-edit-col-full">';
+
+		// Our spacer to make it line up.
+		$field .= '<div class="inline-edit-spacer">&nbsp;</div>';
 
 		// Wrap it in a div.
 		$field .= '<div class="inline-edit-col column-' . esc_attr( $column ) . '">';
 
-			// Load the label portion.
-			$field .= '<span class="title inline-edit-category-label">' . esc_html__( 'Category', 'enforce-single-category' ) . '</span>';
+			// Add the clearfix group.
+			$field .= '<div class="inline-edit-group wp-clearfix">';
 
-			// Call our dropdown function.
-			$field .= Helpers\get_dropdown_field( 0, array( 'class' => 'inline-dropdown' ) );
+				// Wrap the whole thing in a label.
+				$field .= '<label>';
+
+					// Load the label portion.
+					$field .= '<span class="title inline-edit-category-label">' . esc_html__( 'Category', 'enforce-single-category' ) . '</span>';
+
+					// Call our dropdown function.
+					$field .= Helpers\get_dropdown_field( 0, array( 'class' => 'inline-dropdown' ) );
+
+				// Close the label.
+				$field .= '</label>';
+
+			// Close up the div.
+			$field .= '</div>';
 
 		// Close up the div.
 		$field .= '</div>';
