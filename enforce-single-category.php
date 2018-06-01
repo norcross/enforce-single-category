@@ -25,3 +25,4 @@ define( __NAMESPACE__ . '\VERS', '0.1.0' );
 require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/post-edit.php';
 require_once __DIR__ . '/includes/quick-edit.php';
+require_once __DIR__ . '/includes/save-post.php';
