@@ -1,5 +1,5 @@
 # Enforce Single Category
-Ensure only a single category is used on a post
+Ensure only a single category is used on a post.
 
 
 ### To Do
