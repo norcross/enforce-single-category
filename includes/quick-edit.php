@@ -9,23 +9,27 @@
 namespace EnforceSingleCategory\QuickEdit;
 
 // Set our alias items.
+use EnforceSingleCategory as Core;
 use EnforceSingleCategory\Helpers as Helpers;
 
 /**
  * Start our engines.
  */
-add_action( 'admin_head', __NAMESPACE__ . '\add_table_css' );
+add_action( 'admin_enqueue_scripts', __NAMESPACE__ . '\load_quickedit_assets' );
 add_filter( 'manage_post_posts_columns', __NAMESPACE__ . '\add_dummy_column', 10, 2 );
+add_action( 'manage_posts_custom_column', __NAMESPACE__ . '\dummy_column_data', 10, 2 );
 add_filter( 'hidden_columns', __NAMESPACE__ . '\set_hidden_column', 10, 3 );
 add_filter( 'quick_edit_show_taxonomy', __NAMESPACE__ . '\remove_category_inline', 10, 3 );
 add_action( 'quick_edit_custom_box', __NAMESPACE__ . '\display_category_quickedit', 10, 2 );
 
 /**
- * Add some CSS to the head.
+ * Load our admin side JS and CSS.
  *
- * @return string
+ * @param $hook  Admin page hook we are current on.
+ *
+ * @return void
  */
-function add_table_css() {
+function load_quickedit_assets( $hook ) {
 
 	// Get our screen item.
 	$screen = Helpers\check_admin_screen();
@@ -35,16 +39,24 @@ function add_table_css() {
 		return;
 	}
 
-	// Now echo out the CSS.
-	echo '<style type="text/css">' . "\n";
-		echo '#wpbody-content .inline-edit-row fieldset#inline-edit-col-single-category { margin-top:10px; }' . "\n";
-		echo '.inline-edit-spacer { width:50%; float:left; }' . "\n";
-		echo '.column-enforce-plc { float:left; }' . "\n";
-	echo '</style>' . "\n";
+	// Set my handle.
+	$handle = 'enforce-single-category';
+
+	// Set a file suffix structure based on whether or not we want a minified version.
+	$file   = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? $handle : $handle . '.min';
+
+	// Set a version for whether or not we're debugging.
+	$vers   = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? time() : Core\VERS;
+
+	// Load our CSS file.
+	wp_enqueue_style( $handle, Core\ASSETS_URL . '/css/' . $file . '.css', false, $vers, 'all' );
+
+	// And our JS.
+	wp_enqueue_script( $handle, Core\ASSETS_URL . '/js/' . $file . '.js', array( 'jquery' ), $vers, true );
 }
 
 /**
- * Add our dummy column (which will get removed).
+ * Add our dummy column (which will get hidden).
  *
  * @param  array  $columns    All the columns.
  *
@@ -60,6 +72,34 @@ function add_dummy_column( $columns ) {
 
 	// Return the resulting columns.
 	return $columns;
+}
+
+/**
+ * Set the category ID in the table data.
+ *
+ * @param  string  $column   The name of the column.
+ * @param  integer $post_id  The post ID of the row.
+ *
+ * @return integer
+ */
+function dummy_column_data( $column, $post_id ) {
+
+	// Start my column switch.
+	switch ( $column ) {
+
+		case 'enforce-plc':
+
+			// Get my term ID to output.
+			$id = Helpers\get_first_term( $post_id, 'term_id' );
+
+			// Output the field.
+			echo '<input type="hidden" id="enforce-category-' . absint( $id ) . '" class="enforce-single-category-id" value="' . absint( $id ) . '">';
+
+			// And be done.
+			break;
+
+		// End all case breaks.
+	}
 }
 
 /**
@@ -132,7 +172,7 @@ function display_category_quickedit( $column, $post_type ) {
 					$field .= '<span class="title inline-edit-category-label">' . esc_html__( 'Category', 'enforce-single-category' ) . '</span>';
 
 					// Call our dropdown function.
-					$field .= Helpers\get_dropdown_field( 0, array( 'class' => 'inline-dropdown' ) );
+					$field .= Helpers\get_dropdown_field( 0, array( 'id' => 'inline-single-category', 'class' => 'inline-dropdown' ) );
 
 				// Close the label.
 				$field .= '</label>';

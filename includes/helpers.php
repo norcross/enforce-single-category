@@ -24,7 +24,7 @@ function check_admin_screen( $key = '' ) {
 
 	// Get the screen object.
 	$screen = get_current_screen();
-	//preprint( $screen, true );
+
 	// If we didn't get our screen object, bail.
 	if ( ! is_object( $screen ) ) {
 		return false;
