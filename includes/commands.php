@@ -6,7 +6,7 @@
  */
 
 // Call our namepsace.
-namespace EnforceSingleCategory\Commands;
+namespace EnforceSingleCategory;
 
 // Set our alias items.
 use EnforceSingleCategory\Helpers as Helpers;
@@ -21,43 +21,39 @@ use WP_CLI_Command;
 class Commands extends WP_CLI_Command {
 
 	/**
-	* Get the array of post IDs to check.
+	* Get the array of posts to check.
 	*
 	* @return array
 	*/
-	protected function get_post_ids() {
+	protected function get_multi_posts() {
 
-		// Load the global DB.
-		global $wpdb;
+		// Set my args.
+		$args   = array(
+			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
+			'parse'      => 'json', // Parse captured STDOUT to JSON array.
+			'launch'     => false,  // Reuse the current process.
+			'exit_error' => true,   // Halt script execution on error.
+		);
 
-		// Set my table name to use.
-		$table  = $wpdb->prefix . 'posts';
-
-		// Set up our query.
-		$setup  = $wpdb->prepare("
-			SELECT   ID
-			FROM     $table
-			WHERE    post_status = '%s'
-			AND      post_type = '%s'
-			ORDER BY post_date DESC
-		", esc_sql( 'publish' ), esc_sql( 'post' ) );
-
-		// Process the query.
-		$ids    = $wpdb->get_col( $setup );
+		// Get my posts.
+		$ids    = WP_CLI::runcommand( 'post list --post_type=post --field=ID --format=json', $args );
 
 		// Bail on empty or error.
 		if ( empty( $ids ) || is_wp_error( $ids ) ) {
-			WP_CLI::error( 'No post IDs could be retrieved.' );
+			WP_CLI::error( __( 'No post IDs could be retrieved.', 'enforce-single-category' ) );
 		}
+
+		// First run the recount function.
+		WP_CLI::runcommand( 'term recount category --quiet=true' );
 
 		// Set an empty data array.
 		$build  = array();
 
-		// Now loop my items.
+		// Now loop the IDs.
 		foreach ( $ids as $id ) {
 
-			// Get the terms.
-			$terms  = wp_get_post_categories( $id, array( 'orderby' => 'count', 'order' => 'DESC' ) );
+			// Grab the terms.
+			$terms  = WP_CLI::runcommand( 'post term list ' . absint( $id ) . ' category --field=term_id --format=json', $args );
 
 			// Skip if empty or only 1.
 			if ( empty( $terms ) || count( $terms ) < 2 ) {
@@ -68,8 +64,90 @@ class Commands extends WP_CLI_Command {
 			$build[ $id ]   = $terms;
 		}
 
-		// Now return the IDs.
+		// Kill it if they have no multi.
+		if ( empty( $build ) || is_wp_error( $build ) ) {
+			WP_CLI::success( __( 'You have no posts with multiple categories assigned.', 'enforce-single-category' ) );
+			WP_CLI::halt( 0 );
+		}
+
+		// Send it back.
 		return $build;
+	}
+
+	/**
+	 * Figure out the most popular category based on IDs.
+	 *
+	 * @param  array   $terms  The array of term IDs.
+	 *
+	 * @return integer
+	 */
+	protected function get_popular_category( $terms = array() ) {
+
+		// Set my args.
+		$args   = array(
+			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
+			'parse'      => 'json', // Parse captured STDOUT to JSON array.
+			'launch'     => false,  // Reuse the current process.
+			'exit_error' => true,   // Halt script execution on error.
+		);
+
+		// Set an empty.
+		$setup  = array();
+
+		// Loop my terms.
+		foreach ( $terms as $term_id ) {
+
+			// Get my count.
+			$count  = WP_CLI::runcommand( 'term get category ' . absint( $term_id ) . ' --by=id --field=count --format=json', $args );
+
+			// Add to the setup.
+			$setup[ $term_id ] = $count;
+		}
+
+		// Sort by highest value, keeping our key association.
+		arsort( $setup, SORT_NUMERIC );
+
+		// Reset our pointer to the first element.
+		reset( $setup );
+
+		// Return the key of the first element in the array.
+		return key( $setup );
+	}
+
+	/**
+	 * Get the single category based on the type requested.
+	 *
+	 * @param  array   $terms   The array of term IDs.
+	 * @param  string  $select  What sorting we want.
+	 *
+	 * @return integer
+	 */
+	protected function get_single_category( $terms = array(), $select = 'random' ) {
+
+		// Start my switch.
+		switch ( esc_attr( $select ) ) {
+
+			case 'popular' :
+				return $this->get_popular_category( $terms );
+				break;
+
+			case 'first' :
+				return current( $terms );
+				break;
+
+			case 'last' :
+				return end( $terms );
+				break;
+
+			case 'random' :
+				return array_rand( array_flip( $terms ), 1 );
+				break;
+
+			default :
+				return array_rand( array_flip( $terms ), 1 );
+
+			// End all case breaks.
+		}
 	}
 
 	/**
@@ -86,7 +164,7 @@ class Commands extends WP_CLI_Command {
 	 *   - false
 	 * ---
 	 *
-	 * [--single]
+	 * [--select]
 	 * : How to determine which category to use.
 	 * ---
 	 * default: random
@@ -108,46 +186,61 @@ class Commands extends WP_CLI_Command {
 		// Parse out the associatives.
 		$parsed = wp_parse_args( $assoc_args, array(
 			'counts'    => false,
-			'single'    => 'random',
+			'select'    => 'random',
 		));
 
-		// Make sure that WooCommerce is installed and active.
-		$this->verify_woocommerce();
+		// Grab our posts with multiple categories.
+		$posts  = $this->get_multi_posts();
 
-		// Grab our list of releases, filtered.
-		$releases   = Functions\get_filtered_release_list();
-
-		// Throw an error and bail if we have no release data.
-		if ( ! $releases ) {
-			WP_CLI::error( 'No release data was found.' );
+		// Bail on no posts, which should have already happened.
+		if ( ! $posts ) {
+			return;
 		}
 
-		// Now loop the list of my releases, checking the versions.
-		foreach ( $releases as $version => $download ) {
+		// Get the actual count.
+		$count  = count( $posts );
 
-			// Prompt to continue the process if the autoloop wasn't set.
-			if ( ! $parsed['autoloop'] ) {
-				WP_CLI::confirm( sprintf( 'Do you want to install version %s?', esc_attr( $version ) ) );
-				WP_CLI::log( '' );
-			}
+		// Prompt to continue the process if the autoloop wasn't set.
+		if ( $parsed['counts'] ) {
 
-			// Run the database backup if prompted.
-			if ( $parsed['backup'] ) {
-				$this->run_backup( $download, $version );
-			}
-
-			// Run our function to update.
-			$this->move_to_version( $download, $version );
-
-			// Run the Woo updater.
-			$this->run_woo_update();
-
-			// And clear out the object cache.
-			WP_CLI\Utils\wp_clear_object_cache();
-
-			// Finished with the item inside the loop, so return the success.
-			WP_CLI::success( sprintf( 'Success! You have updated WooCommerce to version %s', esc_attr( $version ) ) . "\n" );
+			// Show the count and bail.
+			WP_CLI::success( sprintf( _n( 'You have %d post with multiple categories.', 'You have %d posts with multiple categories.', absint( $count ), 'enforce-single-category' ), absint( $count ) ) );
+			WP_CLI::halt( 0 );
 		}
+
+		// Show the count as a context.
+		WP_CLI::log( sprintf( _n( 'You have %d post with multiple categories.', 'You have %d posts with multiple categories.', absint( $count ), 'enforce-single-category' ), absint( $count ) ) );
+		WP_CLI::log( '' );
+
+		// Set a counter.
+		$i = 0;
+
+		// Now loop my posts and figure out which one we want.
+		foreach ( $posts as $id => $terms ) {
+
+			// Get the single term.
+			$single = $this->get_single_category( $terms, $parsed['select'] );
+
+			// Bail on empty or error.
+			if ( ! $single ) {
+
+				// Show the warning.
+				WP_CLI::warning( __( 'The term not be determined for post ' . absint( $id ), 'enforce-single-category' ) );
+
+				// And move alone.
+				continue;
+			}
+
+			// Set my new term.
+			WP_CLI::runcommand( 'post term set ' . absint( $id ) . ' category ' . absint( $single ) . ' --by=id --quiet=true' );
+
+			// And increment the counter.
+			$i++;
+		}
+
+		// Show the result and bail.
+		WP_CLI::success( sprintf( _n( '%d post has been updated.', '%d posts have been updated.', absint( $i ), 'enforce-single-category' ), absint( $i ) ) );
+		WP_CLI::halt( 0 );
 	}
 
 	/**
@@ -160,18 +253,6 @@ class Commands extends WP_CLI_Command {
 	 * @when after_wp_load
 	 */
 	function runtests() {
-
-		// Set my args.
-		$args   = array(
-			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
-			'parse'      => 'json', // Parse captured STDOUT to JSON array.
-			'launch'     => false,  // Reuse the current process.
-			'exit_error' => true,   // Halt script execution on error.
-		);
-
-		// Get my posts.
-		$posts  = WP_CLI::runcommand( 'post list --post_type=post --format=json', $args );
-
 		// This is blank, just here when I need it.
 	}
 

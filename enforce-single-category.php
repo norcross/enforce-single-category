@@ -43,7 +43,7 @@ require_once __DIR__ . '/includes/save-post.php';
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 
 	// Load our commands file.
-	require_once __DIR__ . '/includes/commands.php';
+	require_once dirname( __FILE__ ) . '/includes/commands.php';
 
 	// And add our command.
 	WP_CLI::add_command( 'enforce-singlecat', Commands::class );
