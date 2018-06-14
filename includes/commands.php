@@ -200,17 +200,19 @@ class Commands extends WP_CLI_Command {
 		// Get the actual count.
 		$count  = count( $posts );
 
-		// Prompt to continue the process if the autoloop wasn't set.
+		// Set the text for counts.
+		$ctext  = sprintf( _n( 'You have %d post with multiple categories assigned.', 'You have %d posts with multiple categories assigned.', absint( $count ), 'enforce-single-category' ), absint( $count ) );
+
+		// If we only wanted the counts, show that.
 		if ( $parsed['counts'] ) {
 
 			// Show the count and bail.
-			WP_CLI::success( sprintf( _n( 'You have %d post with multiple categories.', 'You have %d posts with multiple categories.', absint( $count ), 'enforce-single-category' ), absint( $count ) ) );
+			WP_CLI::success( $ctext );
 			WP_CLI::halt( 0 );
 		}
 
 		// Show the count as a context.
-		WP_CLI::log( sprintf( _n( 'You have %d post with multiple categories.', 'You have %d posts with multiple categories.', absint( $count ), 'enforce-single-category' ), absint( $count ) ) );
-		WP_CLI::log( '' );
+		WP_CLI::log( $ctext . "\n" );
 
 		// Set a counter.
 		$i = 0;
