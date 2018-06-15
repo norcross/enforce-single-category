@@ -21,22 +21,35 @@ use WP_CLI_Command;
 class Commands extends WP_CLI_Command {
 
 	/**
+	 * Get the array of arguments for the runcommand function.
+	 *
+	 * @param  array $custom  Any custom args to pass.
+	 *
+	 * @return array
+	 */
+	protected function get_command_args( $custom = array() ) {
+
+		// Set my base args.
+		$args   = array(
+			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
+			'parse'      => 'json', // Parse captured STDOUT to JSON array.
+			'launch'     => false,  // Reuse the current process.
+			'exit_error' => false,   // Halt script execution on error.
+		);
+
+		// Return either the base args, or the merged item.
+		return ! empty( $custom ) ? wp_parse_args( $args, $custom ) : $args;
+	}
+
+	/**
 	* Get the array of posts to check.
 	*
 	* @return array
 	*/
 	protected function get_multi_posts() {
 
-		// Set my args.
-		$args   = array(
-			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
-			'parse'      => 'json', // Parse captured STDOUT to JSON array.
-			'launch'     => false,  // Reuse the current process.
-			'exit_error' => true,   // Halt script execution on error.
-		);
-
 		// Get my posts.
-		$ids    = WP_CLI::runcommand( 'post list --post_type=post --field=ID --format=json', $args );
+		$ids    = WP_CLI::runcommand( 'post list --post_type=post --field=ID --format=json', $this->get_command_args() );
 
 		// Bail on empty or error.
 		if ( empty( $ids ) || is_wp_error( $ids ) ) {
@@ -53,7 +66,7 @@ class Commands extends WP_CLI_Command {
 		foreach ( $ids as $id ) {
 
 			// Grab the terms.
-			$terms  = WP_CLI::runcommand( 'post term list ' . absint( $id ) . ' category --field=term_id --format=json', $args );
+			$terms  = WP_CLI::runcommand( 'post term list ' . absint( $id ) . ' category --field=term_id --format=json', $this->get_command_args() );
 
 			// Skip if empty or only 1.
 			if ( empty( $terms ) || count( $terms ) < 2 ) {
@@ -83,14 +96,6 @@ class Commands extends WP_CLI_Command {
 	 */
 	protected function get_popular_category( $terms = array() ) {
 
-		// Set my args.
-		$args   = array(
-			'return'     => true,   // Return 'STDOUT'; use 'all' for full object.
-			'parse'      => 'json', // Parse captured STDOUT to JSON array.
-			'launch'     => false,  // Reuse the current process.
-			'exit_error' => true,   // Halt script execution on error.
-		);
-
 		// Set an empty.
 		$setup  = array();
 
@@ -98,7 +103,7 @@ class Commands extends WP_CLI_Command {
 		foreach ( $terms as $term_id ) {
 
 			// Get my count.
-			$count  = WP_CLI::runcommand( 'term get category ' . absint( $term_id ) . ' --by=id --field=count --format=json', $args );
+			$count  = WP_CLI::runcommand( 'term get category ' . absint( $term_id ) . ' --by=id --field=count --format=json', $this->get_command_args() );
 
 			// Add to the setup.
 			$setup[ $term_id ] = $count;
@@ -215,10 +220,10 @@ class Commands extends WP_CLI_Command {
 		WP_CLI::log( $ctext . "\n" );
 
 		// Set a counter.
-		$i = 0;
+		$update = 0;
 
 		// Now loop my posts and figure out which one we want.
-		foreach ( $posts as $id => $terms ) {
+		foreach ( $posts as $post_id => $terms ) {
 
 			// Get the single term.
 			$single = $this->get_single_category( $terms, $parsed['select'] );
@@ -227,21 +232,21 @@ class Commands extends WP_CLI_Command {
 			if ( ! $single ) {
 
 				// Show the warning.
-				WP_CLI::warning( __( 'The term not be determined for post ' . absint( $id ), 'enforce-single-category' ) );
+				WP_CLI::warning( __( 'The term could not be determined for post ' . absint( $post_id ), 'enforce-single-category' ) );
 
 				// And move alone.
 				continue;
 			}
 
 			// Set my new term.
-			WP_CLI::runcommand( 'post term set ' . absint( $id ) . ' category ' . absint( $single ) . ' --by=id --quiet=true' );
+			WP_CLI::runcommand( 'post term set ' . absint( $post_id ) . ' category ' . absint( $single ) . ' --by=id --quiet=true' );
 
 			// And increment the counter.
-			$i++;
+			$update++;
 		}
 
 		// Show the result and bail.
-		WP_CLI::success( sprintf( _n( '%d post has been updated.', '%d posts have been updated.', absint( $i ), 'enforce-single-category' ), absint( $i ) ) );
+		WP_CLI::success( sprintf( _n( '%d post has been updated.', '%d posts have been updated.', absint( $update ), 'enforce-single-category' ), absint( $update ) ) );
 		WP_CLI::halt( 0 );
 	}
 
