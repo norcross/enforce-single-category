@@ -186,7 +186,7 @@ function display_category_quickedit( $column, $post_type ) {
 	// Close the fieldset.
 	$field .= '</fieldset>';
 
-    // And echo it out.
-    echo $field;
+	// And echo it out.
+	echo $field; // WPCS: XSS ok.
 }
 

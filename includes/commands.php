@@ -49,10 +49,10 @@ class Commands extends WP_CLI_Command {
 	protected function get_multi_posts() {
 
 		// Get my posts.
-		$ids    = WP_CLI::runcommand( 'post list --post_type=post --field=ID --format=json', $this->get_command_args() );
+		$posts  = WP_CLI::runcommand( 'post list --post_type=post --field=ID --format=json', $this->get_command_args() );
 
 		// Bail on empty or error.
-		if ( empty( $ids ) || is_wp_error( $ids ) ) {
+		if ( empty( $posts ) || is_wp_error( $posts ) ) {
 			WP_CLI::error( __( 'No post IDs could be retrieved.', 'enforce-single-category' ) );
 		}
 
@@ -63,10 +63,10 @@ class Commands extends WP_CLI_Command {
 		$build  = array();
 
 		// Now loop the IDs.
-		foreach ( $ids as $id ) {
+		foreach ( $posts as $post_id ) {
 
 			// Grab the terms.
-			$terms  = WP_CLI::runcommand( 'post term list ' . absint( $id ) . ' category --field=term_id --format=json', $this->get_command_args() );
+			$terms  = WP_CLI::runcommand( 'post term list ' . absint( $post_id ) . ' category --field=term_id --format=json', $this->get_command_args() );
 
 			// Skip if empty or only 1.
 			if ( empty( $terms ) || count( $terms ) < 2 ) {
@@ -74,7 +74,7 @@ class Commands extends WP_CLI_Command {
 			}
 
 			// Add our data array.
-			$build[ $id ]   = $terms;
+			$build[ $post_id ]  = $terms;
 		}
 
 		// Kill it if they have no multi.
@@ -205,22 +205,19 @@ class Commands extends WP_CLI_Command {
 		// Get the actual count.
 		$count  = count( $posts );
 
-		// Set the text for counts.
-		$ctext  = sprintf( _n( 'You have %d post with multiple categories assigned.', 'You have %d posts with multiple categories assigned.', absint( $count ), 'enforce-single-category' ), absint( $count ) );
+		// Show the count as a context.
+		WP_CLI::line( sprintf( _n( 'You have %d post with multiple categories assigned.', 'You have %d posts with multiple categories assigned.', absint( $count ), 'enforce-single-category' ), absint( $count ) ) );
 
-		// If we only wanted the counts, show that.
+		// If we only wanted the counts, finish up.
 		if ( $parsed['counts'] ) {
-
-			// Show the count and bail.
-			WP_CLI::success( $ctext );
 			WP_CLI::halt( 0 );
 		}
 
-		// Show the count as a context.
-		WP_CLI::log( $ctext . "\n" );
-
 		// Set a counter.
 		$update = 0;
+
+		// Set up the progress bar.
+		$ticker = \WP_CLI\Utils\make_progress_bar( 'Consolidating categories...', $count );
 
 		// Now loop my posts and figure out which one we want.
 		foreach ( $posts as $post_id => $terms ) {
@@ -241,9 +238,15 @@ class Commands extends WP_CLI_Command {
 			// Set my new term.
 			WP_CLI::runcommand( 'post term set ' . absint( $post_id ) . ' category ' . absint( $single ) . ' --by=id --quiet=true' );
 
-			// And increment the counter.
+			// Increment the counter.
 			$update++;
+
+			// Add to the progress bar status.
+			$ticker->tick();
 		}
+
+		// And done.
+		$ticker->finish();
 
 		// Show the result and bail.
 		WP_CLI::success( sprintf( _n( '%d post has been updated.', '%d posts have been updated.', absint( $update ), 'enforce-single-category' ), absint( $update ) ) );
@@ -251,7 +254,7 @@ class Commands extends WP_CLI_Command {
 	}
 
 	/**
-	 * Run a quick numerical test.
+	 * This is a placeholder function for testing.
 	 *
 	 * ## EXAMPLES
 	 *
