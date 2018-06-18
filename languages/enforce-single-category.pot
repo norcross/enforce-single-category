@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Enforce Single Category 0.1.0\n"
 "Report-Msgid-Bugs-To: "
 "https://wordpress.org/support/plugin/enforce-single-category\n"
-"POT-Creation-Date: 2018-06-01 14:05:49+00:00\n"
+"POT-Creation-Date: 2018-06-18 17:01:13+00:00\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -24,6 +24,26 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 "X-Poedit-Bookmarks: \n"
 "X-Textdomain-Support: yes\n"
+
+#: includes/commands.php:56
+msgid "No post IDs could be retrieved."
+msgstr ""
+
+#: includes/commands.php:82
+msgid "You have no posts with multiple categories assigned."
+msgstr ""
+
+#: includes/commands.php:209
+msgid "You have %d post with multiple categories assigned."
+msgid_plural "You have %d posts with multiple categories assigned."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/commands.php:252
+msgid "%d post has been updated."
+msgid_plural "%d posts have been updated."
+msgstr[0] ""
+msgstr[1] ""
 
 #: includes/post-edit.php:38 includes/quick-edit.php:68
 #: includes/quick-edit.php:172

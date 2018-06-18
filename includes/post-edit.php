@@ -51,7 +51,7 @@ function single_category_box( $post ) {
 	echo '<div id="taxonomy-category" class="categorydiv">';
 
 		// Call our dropdown function.
-		echo Helpers\get_dropdown_field( $post->ID );
+		echo Helpers\get_dropdown_field( $post->ID ); // WPCS: XSS ok.
 
 	// Close up the div.
 	echo '</div>';

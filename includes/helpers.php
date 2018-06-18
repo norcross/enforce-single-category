@@ -49,11 +49,16 @@ function check_admin_screen( $key = '' ) {
 			return $screen->id;
 			break;
 
+		case 'post_type' :
+			return $screen->post_type;
+			break;
+
 		default :
 			return array(
-				'action' => $screen->action,
-				'base'   => $screen->base,
-				'id'     => $screen->id
+				'action'    => $screen->action,
+				'base'      => $screen->base,
+				'id'        => $screen->id,
+				'post_type' => $screen->post_type,
 			);
 
 		// End all case breaks.
@@ -152,6 +157,9 @@ function get_dropdown_field( $post_id = 0, $args = array(), $hidden = true, $ech
 
 	// Call the actual dropdown.
 	$field .= wp_dropdown_categories( $setup );
+
+	// Include our nonce.
+	$field .= wp_nonce_field( 'enf_singlecat_nonce_action', 'enf_singlecat_nonce_name', false, false );
 
 	// Echo if requested.
 	if ( ! empty( $echo ) ) {

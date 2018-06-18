@@ -32,9 +32,14 @@ function enforce_on_save( $post_id, $post ) {
 	}
 
 	// Make sure the current user has the ability to save.
-    if ( ! current_user_can( 'edit_post', $post_id ) ) {
-        return;
-    }
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return;
+	}
+
+	// Check to see if our nonce was provided.
+	if ( empty( $_POST['enf_singlecat_nonce_name'] ) || ! wp_verify_nonce( $_POST['enf_singlecat_nonce_name'], 'enf_singlecat_nonce_action' ) ) {
+		return;
+	}
 
 	// Bail if we don't have categories at all (not sure why but ¯\_(ツ)_/¯ )
 	if ( empty( $_POST['post_category'] ) ) {

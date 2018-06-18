@@ -15,6 +15,9 @@
 // Call our namepsace.
 namespace EnforceSingleCategory;
 
+// Call our CLI namespace.
+use WP_CLI;
+
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -35,3 +38,13 @@ require_once __DIR__ . '/includes/helpers.php';
 require_once __DIR__ . '/includes/post-edit.php';
 require_once __DIR__ . '/includes/quick-edit.php';
 require_once __DIR__ . '/includes/save-post.php';
+
+// Check that we have the constant available.
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+
+	// Load our commands file.
+	require_once dirname( __FILE__ ) . '/includes/commands.php';
+
+	// And add our command.
+	WP_CLI::add_command( 'enforce-singlecat', Commands::class );
+}
